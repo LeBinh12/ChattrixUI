@@ -1,0 +1,9 @@
+@tailwind utilities;
+@import "tailwindcss";
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+}
