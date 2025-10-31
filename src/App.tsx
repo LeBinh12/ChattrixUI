@@ -10,9 +10,21 @@ import RegisterScreen from "./pages/RegisterScreen";
 import SuggestionScreen from "./pages/SuggestionScreen";
 import { useLoadUser } from "./hooks/useLoadUser";
 import SuggestionLayout from "./layouts/SuggestionLayout";
+import { useRecoilValue } from "recoil";
+import { userAtom } from "./recoil/atoms/userAtom";
+import { useEffect } from "react";
+import { socketManager } from "./api/socket";
 
 function App() {
   useLoadUser();
+  const user = useRecoilValue(userAtom);
+
+  useEffect(() => {
+    if (user?.data.id) {
+      socketManager.connect(user.data.id);
+      sessionStorage.setItem("socket_user", user.data.id);
+    }
+  }, [user?.data.id]);
   return (
     <>
       <Routes>

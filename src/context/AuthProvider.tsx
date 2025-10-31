@@ -1,6 +1,6 @@
 import React, { useState, type ReactNode } from "react";
 import { AuthContext } from "./AuthContext";
-import { disconnectSocket } from "../api/socket";
+import { socketManager } from "../api/socket";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(
@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     localStorage.removeItem("access_token");
-    disconnectSocket();
+    socketManager.disconnect();
     setToken(null);
   };
 

@@ -22,10 +22,8 @@ export default function ChatHeader({ onUser, onBack }: Props) {
       <div className="w-10 h-10 flex items-center justify-center rounded-full bg-purple-400 text-white font-bold mr-3 shadow-md overflow-hidden">
         <img
           src={
-            onUser.avatar &&
-            onUser.avatar.trim() !== "" &&
-            onUser.avatar !== "null"
-              ? onUser.avatar
+            onUser && onUser.avatar.trim() !== "" && onUser.avatar !== "null"
+              ? `http://localhost:3000/v1/upload/media/${onUser.avatar}`
               : "/assets/logo.png"
           }
           alt={onUser.display_name}

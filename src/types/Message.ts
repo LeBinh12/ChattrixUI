@@ -1,3 +1,5 @@
+import type { Media } from "./upload";
+
 export type Message = {
   id: number;
   sender: string;
@@ -22,8 +24,15 @@ export type Messages = {
   id: string,
   sender_id: string,
   receiver_id: string,
+  group_id: string,
   content: string,
   created_at: string,
-  is_read: string
+  is_read: boolean,
+  status: string,
+  sender_name: string,
+  sender_avatar: string,
+  media_ids: Media[],
+  type: string
 }
+
 

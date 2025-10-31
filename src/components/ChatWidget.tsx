@@ -7,7 +7,11 @@ import { MessageCircle, X } from "lucide-react";
 import ChatMessage from "./chat/ChatMessage";
 import type { Conversation } from "../types/conversation";
 
-export default function ChatWidget() {
+interface ChatWidgetProps {
+  isGroupModalOpen?: boolean;
+}
+
+export default function ChatWidget({ isGroupModalOpen }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "home" | "messages" | "help" | "news"
@@ -21,7 +25,11 @@ export default function ChatWidget() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div
+      className={`fixed bottom-5 right-5 z-50 transition-all duration-300 ${
+        isGroupModalOpen ? "blur-sm pointer-events-none opacity-60" : ""
+      }`}
+    >
       {/* Floating Button */}
       <motion.div
         whileHover={{

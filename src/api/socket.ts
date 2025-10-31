@@ -1,64 +1,122 @@
-let socket: WebSocket | null = null;
+import type { Media } from "../types/upload";
 
-export const connectSocket = (userId: string, onMessage?: (data: any) => void) => {
-  if (!socket || socket.readyState === WebSocket.CLOSED) {
-        socket = new WebSocket(`ws://localhost:3000/v1/chat/ws?id=${userId}`);
+type MessageCallback = (data: any) => void;
 
+class SocketManager {
+  private socket: WebSocket | null = null;
+  private heartbeatInterval: number | null = null;
+  private userId: string | null = null;
+  private listeners: MessageCallback[] = [];
 
-    socket.onopen = () => {
-      console.log("✅ Socket connected", socket);
+  connect(userId: string) {
+    if (this.socket && this.socket.readyState !== WebSocket.CLOSED) return;
+    console.log("người dùng trước socket:", userId)
+    this.userId = userId;
+    this.socket = new WebSocket(`ws://localhost:3000/v1/chat/ws?id=${userId}`);
+
+    this.socket.onopen = () => {
+      console.log("Socket connected");
+
+      if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = window.setInterval(() => {
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+          this.socket.send(JSON.stringify({ type: "ping" }));
+        }
+      }, 25000);
     };
 
-    socket.onclose = () => {
-      console.log("❌ Socket closed");
-    };
-
-    socket.onerror = (error) => {
-      console.error("⚠️ Socket error:", error, socket);
-      };
-      
-       socket.onmessage = (event) => {
+    this.socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log("📩 Received:", data);
-        if (onMessage) onMessage(data);
+
+        if (data.type === "pong") return;
+        if (data.type === "ping" && this.socket?.readyState === WebSocket.OPEN) {
+          this.socket.send(JSON.stringify({ type: "pong" }));
+          return;
+        }
+
+        this.listeners.forEach((cb) => cb(data));
       } catch (e) {
-        console.warn("⚠️ Lỗi parse JSON từ server:", e);
+        console.warn("Lỗi parse JSON từ server:", e);
       }
     };
+
+    this.socket.onclose = () => {
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+      }
+      console.log("Socket disconnected");
+    };
+
+    this.socket.onerror = (err) => console.error("Socket error:", err);
   }
-  return socket;
-};
 
-export const getSocket = () => socket;
+  disconnect() {
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    this.listeners = [];
+    this.userId = null;
+  }
 
-export const sendMessage = (senderId: string, receiverId: string, content: string) => {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    const msg = {
+  sendMessage(senderId: string, receiverId: string, groupID: string, content: string,
+    mediaIDs: Media[], display_name: string, avatar?: string, sender_avatar?: string) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    const msg: any = {
       type: "chat",
       message: {
         sender_id: senderId,
-        receiver_id: receiverId,
+        receiver_id: receiverId || undefined,
+        group_id: groupID || undefined,
         content,
+        media_ids: mediaIDs,
+        type: mediaIDs.length > 0 ? "file" : "text",
+        display_name: display_name,
+        avatar: avatar,
+        sender_avatar: sender_avatar
       },
     };
-    socket.send(JSON.stringify(msg));
-    console.log("✉️ [sendMessage]", msg);
-  } else {
-    console.warn("⚠️ Socket chưa mở, không thể gửi message", socket);
+    this.socket.send(JSON.stringify(msg));
   }
-};
 
+  sendMemberLeft(senderId?: string, groupID?: string, displayName?: string, avatar?: string) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
 
+    const msg = {
+      type: "member_left",
+      message: {
+        sender_id: senderId,
+        group_id: groupID,
+        content: `Người dùng ${displayName} đã thoát nhóm`,
+        avatar: avatar,
+        type: "system",
+      },
+    };
 
-
-export const disconnectSocket = () => {
-  if (socket) {
-    socket.close();
-    socket = null;
+    this.socket.send(JSON.stringify(msg));
   }
-};
 
-window.addEventListener("beforeunload", () => {
-  disconnectSocket();
-})
+  addListener(cb: MessageCallback) {
+    this.listeners.push(cb);
+  }
+
+  removeListener(cb: MessageCallback) {
+    this.listeners = this.listeners.filter((fn) => fn !== cb);
+  }
+
+  getSocket() {
+    return this.socket;
+  }
+}
+
+export const socketManager = new SocketManager();
+
+// Disconnect khi unload
+window.addEventListener("beforeunload", () => socketManager.disconnect());
+

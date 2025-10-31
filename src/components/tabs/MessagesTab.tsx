@@ -1,22 +1,36 @@
 import { motion } from "framer-motion";
 import { formatTimestamp } from "../../logic/FormatTimestamp";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRecoilValue } from "recoil";
 import { userAtom } from "../../recoil/atoms/userAtom";
 import type { Conversation } from "../../types/conversation";
 import { conversationApi } from "../../api/conversation";
+import { socketManager } from "../../api/socket";
 import { Search } from "lucide-react";
+import { Howl } from "howler";
 
 type Props = {
   onFriend: (friend: Conversation) => void;
   onOpenId?: (id: string) => void;
 };
 
+const ding = new Howl({
+  src: ["/assets/ting.mp3"],
+  preload: true,
+  volume: 0.8,
+});
+
 export default function MessagesTab({ onFriend, onOpenId }: Props) {
   const user = useRecoilValue(userAtom);
-  const [query, setQuery] = useState("");
   const [users, setUsers] = useState<Conversation[]>([]);
+  const usersRef = useRef<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // giá trị nhập tạm
+
+  const play = () => {
+    ding.play();
+  };
 
   useEffect(() => {
     if (!user?.data?.id) return;
@@ -24,8 +38,9 @@ export default function MessagesTab({ onFriend, onOpenId }: Props) {
     const fetchConversations = async () => {
       try {
         setLoading(true);
-        const res = await conversationApi.getConversation(1, 10);
+        const res = await conversationApi.getConversation(1, 10, keyword);
         setUsers(res.data.data || []);
+        usersRef.current = res.data.data || [];
       } catch (error) {
         console.error("❌ Lỗi khi lấy danh sách hội thoại:", error);
       } finally {
@@ -34,6 +49,62 @@ export default function MessagesTab({ onFriend, onOpenId }: Props) {
     };
 
     fetchConversations();
+  }, [user, keyword]);
+
+  // Realtime conversation update
+  useEffect(() => {
+    if (!user?.data?.id) return;
+    socketManager.connect(user.data.id);
+
+    const listener = (data: any) => {
+      if (data.type === "conversations" && data.message) {
+        const msg = data.message;
+        setUsers((prev) => {
+          // Kiểm tra group
+          const isGroupChat =
+            msg.group_id && msg.group_id !== "000000000000000000000000";
+          let existIndex = -1;
+          if (isGroupChat) {
+            existIndex = prev.findIndex((c) => c.group_id === msg.group_id);
+          } else {
+            existIndex = prev.findIndex(
+              (c) =>
+                c.user_id === msg.user_id &&
+                (!c.group_id || c.group_id === "000000000000000000000000")
+            );
+          }
+          const oldConversation = existIndex >= 0 ? prev[existIndex] : null;
+          const updatedConversation: Conversation = {
+            user_id: isGroupChat ? "" : msg.user_id,
+            group_id: isGroupChat ? msg.group_id : "",
+            display_name:
+              oldConversation?.display_name || msg.display_name || "Unknown",
+            avatar: oldConversation?.avatar || msg.avatar || "",
+            last_message: msg.last_message || "",
+            last_message_type: msg.last_message_type || "text",
+            last_date: new Date().toISOString(),
+            unread_count:
+              msg.sender_id !== user.data.id
+                ? (oldConversation?.unread_count || 0) + 1
+                : oldConversation?.unread_count || 0,
+            status: oldConversation?.status || "offline",
+            updated_at: new Date().toISOString(),
+          };
+          if (existIndex >= 0) {
+            play();
+            const newList = [...prev];
+            newList.splice(existIndex, 1);
+            return [updatedConversation, ...newList];
+          }
+          play();
+          return [updatedConversation, ...prev];
+        });
+      }
+    };
+    socketManager.addListener(listener);
+    return () => {
+      socketManager.removeListener(listener);
+    };
   }, [user]);
 
   // const filtered = users.filter((u) =>
@@ -44,6 +115,32 @@ export default function MessagesTab({ onFriend, onOpenId }: Props) {
   const sortedMessages = [...users].sort(
     (a, b) => new Date(b.last_date).getTime() - new Date(a.last_date).getTime()
   );
+
+  // Hàm xử lý nội dung hiển thị
+  const renderMessageContent = (msg: Conversation) => {
+    const { last_message_type, last_message, display_name, unread_count } = msg;
+    // Nếu là media thì hiển thị như cũ
+    if (["image", "video", "file"].includes(last_message_type)) {
+      const typeText =
+        last_message_type === "image"
+          ? "ảnh"
+          : last_message_type === "video"
+          ? "video"
+          : "tệp";
+      return (
+        <span className="text-gray-700 font-medium">
+          {display_name} đã gửi cho bạn{" "}
+          {unread_count > 1 ? `${unread_count} ${typeText}` : `1 ${typeText}`}
+        </span>
+      );
+    }
+
+    return (
+      <span className="text-gray-700 font-medium">
+        <div dangerouslySetInnerHTML={{ __html: msg.last_message }} />
+      </span>
+    );
+  };
 
   return (
     <div className="p-4 space-y-3">
@@ -64,8 +161,13 @@ export default function MessagesTab({ onFriend, onOpenId }: Props) {
           <input
             type="text"
             placeholder="Tìm kiếm..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                setKeyword(searchTerm.trim());
+              }
+            }}
             className="w-full bg-transparent text-white placeholder-gray-300 pl-10 pr-4 py-3 rounded-xl 
                        focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all"
           />
@@ -97,11 +199,11 @@ export default function MessagesTab({ onFriend, onOpenId }: Props) {
                 className="flex items-center p-4 bg-purple-50 rounded-lg shadow-sm hover:bg-[#cedbfb] transition cursor-pointer"
               >
                 {/* Avatar */}
-                <div className="relative w-12 h-12 mr-3 shadow-md">
+                <div className="relative w-12 h-12 mr-3">
                   <img
                     src={
                       msg.avatar && msg.avatar !== "null"
-                        ? msg.avatar
+                        ? `http://localhost:3000/v1/upload/media/${msg.avatar}`
                         : "/assets/logo.png"
                     }
                     alt={msg.display_name}
@@ -122,9 +224,11 @@ export default function MessagesTab({ onFriend, onOpenId }: Props) {
                       {formatTimestamp(msg.last_date)}
                     </span>
                   </div>
-                  <p className="text-sm font-bold text-black truncate">
-                    {msg.last_message}
-                  </p>
+                  <div className="text-sm font-bold text-black line-clamp-2">
+                    <div className="text-sm font-bold text-black line-clamp-2">
+                      {renderMessageContent(msg)}
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
