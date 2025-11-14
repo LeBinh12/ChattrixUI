@@ -24,8 +24,8 @@ export default function ChatInfoHeader({
   const [showMuteModal, setShowMuteModal] = useState(false);
   const selectedChat = useRecoilValue(selectedChatState);
   const [loading, setLoading] = useState(false);
-  const [bellAtom, setBellAtom] = useRecoilState(bellStateAtom);
   const user = useRecoilValue(userAtom);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -51,7 +51,6 @@ export default function ChatInfoHeader({
     })();
   }, [selectedChat]);
 
-  // Hàm nhấn vào chuông
   const handleBellClick = () => {
     if (!bell?.is_muted) {
       setShowMuteModal(true);
@@ -60,7 +59,6 @@ export default function ChatInfoHeader({
     }
   };
 
-  // Bật lại thông báo
   const handleUnmute = async () => {
     if (!bell || !selectedChat || !user?.data.id) return;
 
@@ -87,7 +85,6 @@ export default function ChatInfoHeader({
     }
   };
 
-  //Tắt thông báo
   const handleMuteOption = async (label: string, duration?: number) => {
     if (!bell || !selectedChat || !user?.data.id) return;
 
@@ -135,8 +132,8 @@ export default function ChatInfoHeader({
 
   return (
     <>
-      <div className="flex flex-col items-center py-6 px-4 border-b border-gray-200 relative z-10">
-        <div className="w-20 h-20 rounded-full overflow-hidden mb-3 border-2 border-gray-200">
+      <div className="flex flex-col items-center py-6 px-4 border-b border-blue-700/30 relative z-10">
+        <div className="w-20 h-20 rounded-full overflow-hidden mb-3 border-2 border-blue-400/50 ring-2 ring-blue-500/20">
           <img
             src={avatarUrl}
             alt={displayName}
@@ -144,29 +141,29 @@ export default function ChatInfoHeader({
           />
         </div>
 
-        <h3 className="font-semibold text-lg text-gray-800">{displayName}</h3>
+        <h3 className="font-semibold text-lg text-white">{displayName}</h3>
 
         {!isGroup && status && (
-          <span className="text-xs text-gray-500 mt-1">
+          <span className="text-xs text-blue-200 mt-1">
             {status === "online" ? "Đang hoạt động" : "Không hoạt động"}
           </span>
         )}
 
         {/* Icon chuông */}
         <button
-          className="mt-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+          className="mt-4 p-2 rounded-full bg-blue-800/40 hover:bg-blue-700/60 transition-colors backdrop-blur-sm"
           onClick={handleBellClick}
           title={bell?.is_muted ? "Bật thông báo" : "Tắt thông báo"}
         >
           {bell?.is_muted ? (
-            <BellOff className="w-6 h-6 text-gray-600" />
+            <BellOff className="w-6 h-6 text-blue-300" />
           ) : (
-            <Bell className="w-6 h-6 text-blue-500" />
+            <Bell className="w-6 h-6 text-blue-300" />
           )}
         </button>
 
         {bell?.is_muted && (
-          <span className="text-xs text-gray-500 mt-1">Đã tắt thông báo</span>
+          <span className="text-xs text-blue-300 mt-1">Đã tắt thông báo</span>
         )}
       </div>
 
@@ -174,58 +171,58 @@ export default function ChatInfoHeader({
       {showMuteModal && (
         <>
           <div
-            className="fixed inset-0 z-[100]"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
             onClick={() => setShowMuteModal(false)}
           />
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 bg-white rounded-lg shadow-2xl border border-gray-200 p-2 z-[101]">
-            <div className="text-sm font-medium text-gray-700 mb-2 px-2">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 bg-gradient-to-br from-blue-900 to-blue-800 rounded-lg shadow-2xl border border-blue-600/30 p-2 z-[101]">
+            <div className="text-sm font-medium text-blue-100 mb-2 px-2">
               Tắt thông báo trong:
             </div>
 
             <button
-              className="w-full px-3 py-2 text-left rounded hover:bg-gray-50 text-sm transition-colors"
+              className="w-full px-3 py-2 text-left rounded hover:bg-blue-700/50 text-sm transition-colors text-white"
               onClick={() => handleMuteOption("1h", 60 * 60 * 1000)}
             >
               <div className="flex justify-between items-center">
                 <span>1 tiếng</span>
-                <span className="text-xs text-gray-400">1h</span>
+                <span className="text-xs text-blue-300">1h</span>
               </div>
             </button>
 
             <button
-              className="w-full px-3 py-2 text-left rounded hover:bg-gray-50 text-sm transition-colors"
+              className="w-full px-3 py-2 text-left rounded hover:bg-blue-700/50 text-sm transition-colors text-white"
               onClick={() => handleMuteOption("24h", 24 * 60 * 60 * 1000)}
             >
               <div className="flex justify-between items-center">
                 <span>24 tiếng</span>
-                <span className="text-xs text-gray-400">24h</span>
+                <span className="text-xs text-blue-300">24h</span>
               </div>
             </button>
 
             <button
-              className="w-full px-3 py-2 text-left rounded hover:bg-gray-50 text-sm transition-colors"
+              className="w-full px-3 py-2 text-left rounded hover:bg-blue-700/50 text-sm transition-colors text-white"
               onClick={() => handleMuteOption("30d", 30 * 24 * 60 * 60 * 1000)}
             >
               <div className="flex justify-between items-center">
                 <span>1 tháng</span>
-                <span className="text-xs text-gray-400">30 ngày</span>
+                <span className="text-xs text-blue-300">30 ngày</span>
               </div>
             </button>
 
             <button
-              className="w-full px-3 py-2 text-left rounded hover:bg-gray-50 text-sm transition-colors"
+              className="w-full px-3 py-2 text-left rounded hover:bg-blue-700/50 text-sm transition-colors text-white"
               onClick={() => handleMuteOption("untilOn")}
             >
               <div className="flex justify-between items-center">
                 <span>Vĩnh viễn</span>
-                <span className="text-xs text-gray-400">∞</span>
+                <span className="text-xs text-blue-300">∞</span>
               </div>
             </button>
 
-            <hr className="my-1 border-gray-200" />
+            <hr className="my-1 border-blue-600/30" />
 
             <button
-              className="w-full px-3 py-2 text-left rounded hover:bg-red-50 text-sm text-red-500 transition-colors"
+              className="w-full px-3 py-2 text-left rounded hover:bg-red-700/50 text-sm text-red-300 transition-colors"
               onClick={() => setShowMuteModal(false)}
             >
               Hủy

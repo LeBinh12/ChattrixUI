@@ -1,126 +1,147 @@
-import { Home, Plus } from "lucide-react";
+import { MessageSquare, Users, Settings, LogOut } from "lucide-react";
 import { useRecoilState, useSetRecoilState, useRecoilValue } from "recoil";
 import { selectedChatState } from "../../recoil/atoms/chatAtom";
-import { useEffect } from "react";
-import { groupApi } from "../../api/group";
-import CreateGroupModal from "../group/CreateGroup";
-import { groupListState } from "../../recoil/atoms/groupAtom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { socketManager } from "../../api/socket";
+import ConfirmModal from "../notification/ConfirmModal";
 
 interface SidebarProps {
-  isGroupModalOpen: boolean;
-  setIsGroupModalOpen: (open: boolean) => void;
   onGroupCreated: () => void;
   refreshGroups: number;
 }
 
+type TabType = "messages" | "contacts" | null;
+
 export default function Sidebar({
-  isGroupModalOpen,
-  setIsGroupModalOpen,
   onGroupCreated,
   refreshGroups,
 }: SidebarProps) {
   const setSelectedChat = useSetRecoilState(selectedChatState);
   const selectedChat = useRecoilValue(selectedChatState);
-  const [servers, setServers] = useRecoilState(groupListState);
+  const [activeTab, setActiveTab] = useState<TabType>("messages");
+  const [showSettings, setShowSettings] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const res = await groupApi.getGroup();
-        setServers(res.data); // lưu mảng Group vào state
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách nhóm:", error);
-      }
-    };
-    fetchGroups();
-    // refresh when parent triggers
-  }, [refreshGroups, setServers]);
+  const handleTabClick = (tab: TabType) => {
+    setActiveTab(tab);
+    if (tab === "contacts") {
+      setSelectedChat(null);
+    }
+  };
+
+  const handleSettingsClick = () => {
+    setShowSettings(!showSettings);
+  };
+
+  const handleLogout = () => {
+    toast.info(`Đăng xuất thành công!`);
+    socketManager.disconnect();
+    localStorage.removeItem("access_token");
+    navigate("/login");
+  };
 
   return (
     <>
-      <div className="flex flex-col items-center bg-[#357ae8] text-white w-16 sm:w-20 h-screen py-4 space-y-4 shadow-lg">
-        <div
-          onClick={() => setSelectedChat(null)}
-          className="relative group bg-white text-[#357ae8] p-3 rounded-full hover:bg-slate-200 transition cursor-pointer"
-          title="Trang chủ"
-        >
-          <Home size={24} />
-          <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-[#1e3a8a] text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-50">
-            Trang chủ
-          </span>
-        </div>
-
-        <div className="w-8 h-[2px] bg-white/40 rounded-full my-2"></div>
-
-        {/* Danh sách server */}
-        <div className="flex flex-col space-y-4 mt-4">
-          {servers.map((server) => {
-            let mediaURL = "";
-            if (
-              !server.image ||
-              server.image === "null" ||
-              server.image === "" ||
-              server.image === null ||
-              server.image === undefined
-            ) {
-              mediaURL = "/assets/logo.png";
-            } else {
-              mediaURL = `http://localhost:3000/v1/upload/media/${server.image}`;
-            }
-
-            const isSelected = selectedChat?.group_id === server.id;
-
-            return (
-              <div
-                onClick={() =>
-                  setSelectedChat({
-                    user_id: "",
-                    group_id: server.id,
-                    avatar: server.image,
-                    display_name: server.name,
-                    status: "online",
-                    update_at: server.updated_at,
-                  })
-                }
-                key={server.id}
-                className="relative group cursor-pointer flex items-center"
-              >
-                {/* Thanh highlight bên trái khi được chọn */}
-                {isSelected && (
-                  <div className="absolute -left-4 w-1 h-10 bg-white rounded-r-full"></div>
-                )}
-
-                <img
-                  src={mediaURL}
-                  alt={server.name}
-                  className={`w-12 h-12 rounded-lg object-cover hover:rounded-xl transition-all duration-300 ${
-                    isSelected ? "rounded-xl ring-2 ring-[#063970]" : ""
-                  }`}
-                />
-                <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-[#1e3a8a] text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-50">
-                  {server.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div
-          onClick={() => setIsGroupModalOpen(true)}
-          className="relative group cursor-pointer mb-3"
-        >
-          <div className="bg-white/20 p-3 rounded-full hover:bg-white/40 transition">
-            <Plus size={24} />
+      <div className="flex flex-col bg-gradient-to-b from-[#1e3a8a] via-[#1e40af] to-[#2563eb] items-center text-white w-16 sm:w-20 h-screen py-4 shadow-2xl border-r border-blue-700/30">
+        {/* Logo */}
+        <div className="relative group flex-shrink-0 mb-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-blue-300/50">
+            <img
+              src="/assets/logo.png"
+              alt="Logo"
+              className="w-10 h-10 object-contain"
+            />
           </div>
-          <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-[#1e3a8a] text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-50">
-            Thêm nhóm
+        </div>
+
+        {/* Divider */}
+        <div className="w-10 h-[2px] bg-gradient-to-r from-transparent via-blue-300/60 to-transparent rounded-full mb-3"></div>
+
+        {/* Navigation Tabs */}
+        <div className="flex flex-col space-y-3 flex-shrink-0">
+          {/* Tab Tin nhắn */}
+          <div
+            onClick={() => handleTabClick("messages")}
+            className={`relative group p-3 rounded-2xl hover:rounded-xl transition-all duration-300 cursor-pointer shadow-lg hover:shadow-xl hover:scale-105 ${
+              activeTab === "messages"
+                ? "bg-gradient-to-br from-blue-500 to-blue-700 ring-2 ring-blue-300/50"
+                : "bg-blue-800/40 backdrop-blur-sm hover:bg-blue-700/60"
+            }`}
+            title="Tin nhắn"
+          >
+            <MessageSquare size={24} className="drop-shadow-sm" />
+            <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-gray-900/95 text-white text-xs py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
+              Tin nhắn
+            </span>
+          </div>
+
+          {/* Tab Danh bạ */}
+          <div
+            onClick={() => handleTabClick("contacts")}
+            className={`relative group p-3 rounded-2xl hover:rounded-xl transition-all duration-300 cursor-pointer shadow-lg hover:shadow-xl hover:scale-105 ${
+              activeTab === "contacts"
+                ? "bg-gradient-to-br from-blue-500 to-blue-700 ring-2 ring-blue-300/50"
+                : "bg-blue-800/40 backdrop-blur-sm hover:bg-blue-700/60"
+            }`}
+            title="Danh bạ"
+          >
+            <Users size={24} className="drop-shadow-sm" />
+            <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-gray-900/95 text-white text-xs py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
+              Danh bạ
+            </span>
+          </div>
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1"></div>
+
+        {/* Divider */}
+        <div className="w-10 h-[2px] bg-gradient-to-r from-transparent via-blue-300/60 to-transparent rounded-full my-3"></div>
+
+        {/* Nút Cài đặt */}
+        <div
+          onClick={handleSettingsClick}
+          className={`relative group p-3 rounded-2xl hover:rounded-xl transition-all duration-300 cursor-pointer shadow-lg hover:shadow-xl hover:scale-105 flex-shrink-0 ${
+            showSettings
+              ? "bg-gradient-to-br from-blue-500 to-blue-700 ring-2 ring-blue-300/50"
+              : "bg-blue-800/40 backdrop-blur-sm hover:bg-blue-700/60"
+          }`}
+          title="Cài đặt"
+        >
+          <Settings size={24} className="drop-shadow-sm" />
+          <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-gray-900/95 text-white text-xs py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
+            Cài đặt
           </span>
         </div>
+
+        {/* Nút Đăng xuất */}
+        {showSettings && (
+          <div
+            onClick={() => setShowConfirm(true)}
+            className="relative group bg-red-500/20 backdrop-blur-sm text-red-300 hover:text-white hover:bg-red-600 p-3 rounded-2xl hover:rounded-xl transition-all duration-300 cursor-pointer shadow-lg hover:shadow-xl hover:scale-105 flex-shrink-0 mt-2 animate-in fade-in slide-in-from-bottom-2 ring-1 ring-red-400/30"
+            title="Đăng xuất"
+          >
+            <LogOut size={24} className="drop-shadow-sm" />
+            <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-gray-900/95 text-white text-xs py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">
+              Đăng xuất
+            </span>
+          </div>
+        )}
       </div>
-      <CreateGroupModal
-        isOpen={isGroupModalOpen}
-        onClose={() => setIsGroupModalOpen(false)}
-        onCreateGroup={onGroupCreated}
+
+      <ConfirmModal
+        isOpen={showConfirm}
+        title="Xác nhận đăng xuất"
+        confirmText="Đăng xuất"
+        cancelText="Hủy"
+        onConfirm={() => {
+          setShowConfirm(false);
+          handleLogout();
+        }}
+        onCancel={() => setShowConfirm(false)}
       />
     </>
   );

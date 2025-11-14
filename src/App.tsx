@@ -14,6 +14,11 @@ import { useRecoilValue } from "recoil";
 import { userAtom } from "./recoil/atoms/userAtom";
 import { useEffect } from "react";
 import { socketManager } from "./api/socket";
+import AdminLayout from "./layouts/AdminLayout";
+import AdminHomeScreen from "./pages/AdminHomeScreen";
+import UserManagementScreen from "./pages/UserManagementScreen";
+import AuthOpenDictCallback from "./pages/AuthOpenDictCallback";
+import CompleteProfileScreen from "./pages/RegisterOAuth2Screen";
 
 function App() {
   useLoadUser();
@@ -38,6 +43,15 @@ function App() {
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/register" element={<RegisterScreen />} />
         </Route>
+        <Route
+          element={
+            <PrivateRoute>
+              <AuthLayout />
+            </PrivateRoute>
+          }
+        >
+          <Route path="/register-oauth" element={<CompleteProfileScreen />} />
+        </Route>
 
         <Route
           element={
@@ -59,6 +73,20 @@ function App() {
           <Route path="/" element={<HomeScreen />} />
           <Route path="/home" element={<HomeScreen />} />
         </Route>
+
+        {/* Page Admin */}
+        <Route element={<AdminLayout />}>
+          <Route path="/admin" element={<AdminHomeScreen />} />
+          <Route path="/admin/dashboard" element={<AdminHomeScreen />} />
+          <Route
+            path="/admin/user-manager"
+            element={<UserManagementScreen />}
+          />
+        </Route>
+        <Route
+          path="/auth/opendict/callback"
+          element={<AuthOpenDictCallback />}
+        />
       </Routes>
       <ToastContainer
         position="top-right"

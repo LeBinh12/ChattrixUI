@@ -4,8 +4,13 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-    status: number;
-    message: string;
-    data: string
+  status: number;
+  message: string;
+  data: string
 }
 
+export interface OAuth2LoginResponse {
+  status: number;
+  message: string;
+  data: string;
+}

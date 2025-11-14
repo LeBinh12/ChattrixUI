@@ -6,12 +6,11 @@ import ChatFooter from "./ChatFooter";
 import { MessageCircle, X } from "lucide-react";
 import ChatMessage from "./chat/ChatMessage";
 import type { Conversation } from "../types/conversation";
+import { useRecoilValue } from "recoil";
+import { groupModalAtom } from "../recoil/atoms/uiAtom";
 
-interface ChatWidgetProps {
-  isGroupModalOpen?: boolean;
-}
-
-export default function ChatWidget({ isGroupModalOpen }: ChatWidgetProps) {
+export default function ChatWidget() {
+  const isGroupModalOpen = useRecoilValue(groupModalAtom);
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "home" | "messages" | "help" | "news"

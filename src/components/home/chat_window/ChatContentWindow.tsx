@@ -3,7 +3,7 @@ import type { Messages } from "../../../types/Message";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import MessageItem from "../../chat/chat_content/MessageItem";
-import MediaPreviewModal from "./MediaPreviewModal";
+import MediaPreview from "../../chat/chat_content/MediaPreview";
 
 type Props = {
   display_name: string;
@@ -23,14 +23,15 @@ export default function ChatContentWindow({
   const containerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<string | null>(null);
-  // Thu thập tất cả media (image, video) từ messages
+  const [newMessageIds, setNewMessageIds] = useState<Set<string>>(new Set());
+
   const allMedia = messages.flatMap((msg) =>
     (msg.media_ids || [])
       .filter((m) => m.type === "image" || m.type === "video")
       .map((m) => ({
-        id: m.url,
-        type: m.type,
+        id: m.id,
         url: m.url,
+        type: m.type,
         filename: m.filename || m.url,
         timestamp: msg.created_at,
       }))
@@ -39,6 +40,7 @@ export default function ChatContentWindow({
   const prevMessageCount = useRef(0);
   const prevDisplayName = useRef(display_name);
   const lastMessageId = useRef<string | null>(null);
+
   const handleScroll = async () => {
     if (!containerRef.current) return;
     const container = containerRef.current;
@@ -46,7 +48,6 @@ export default function ChatContentWindow({
 
     setShowScrollButton(scrollTop + clientHeight < scrollHeight - 100);
 
-    // Khi cuộn đến gần đầu và chưa loading
     if (scrollTop < 50 && !isLoadingMore) {
       const prevScrollHeight = container.scrollHeight;
       const prevScrollTop = container.scrollTop;
@@ -74,18 +75,20 @@ export default function ChatContentWindow({
     const container = containerRef.current;
     if (!container) return;
 
-    // FIX 1: Reset khi chuyển conversation (display_name thay đổi)
     if (prevDisplayName.current !== display_name) {
-      requestAnimationFrame(() => {
-        container.scrollTop = container.scrollHeight;
-      });
       prevDisplayName.current = display_name;
       prevMessageCount.current = messages.length;
       lastMessageId.current = messages[messages.length - 1]?.id || null;
+      setNewMessageIds(new Set());
+
+      requestAnimationFrame(() => {
+        if (container && messages.length > 0) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
       return;
     }
 
-    // Kiểm tra tin nhắn mới thông qua ID thay vì chỉ số lượng
     const currentLastMessageId = messages[messages.length - 1]?.id;
     const hasNewMessage =
       messages.length > prevMessageCount.current &&
@@ -95,11 +98,24 @@ export default function ChatContentWindow({
       const newMessage = messages[messages.length - 1];
       const isMyMessage = newMessage?.sender_id === currentUserId;
 
+      setNewMessageIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(currentLastMessageId!);
+        return newSet;
+      });
+
+      setTimeout(() => {
+        setNewMessageIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(currentLastMessageId!);
+          return newSet;
+        });
+      }, 2000);
+
       const isAtBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight <
         100;
 
-      // Luôn scroll xuống nếu là tin nhắn của mình HOẶC đang ở gần đáy
       if (isMyMessage || isAtBottom) {
         requestAnimationFrame(() => {
           container.scrollTop = container.scrollHeight;
@@ -115,69 +131,128 @@ export default function ChatContentWindow({
   return (
     <>
       {/* Logo mờ giữa */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-1">
         <img
           src="/assets/logo.png"
           alt="logo"
-          className="opacity-20 w-40 h-40 sm:w-52 sm:h-52 object-contain select-none"
+          className="opacity-10 w-40 h-40 sm:w-52 sm:h-52 object-contain select-none"
         />
       </div>
+
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="relative flex-1 p-3 overflow-y-auto bg-gradient-to-b from-[#2665b1]
-                scrollbar-thin scrollbar-thumb-purple-400 scrollbar-track-transparent"
+        className="
+                  relative flex-1 p-3 overflow-y-auto 
+                  bg-[#003ea3] to-blue-100/60
+                  scrollbar-thin scrollbar-thumb-blue-400 scrollbar-track-blue-100/50
+                  transition-colors
+                "
       >
         {isLoadingMore && (
-          <div className="text-center text-white py-2">Đang tải thêm...</div>
+          <div className="text-center text-blue-600 py-2">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="inline-flex items-center space-x-2"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"
+              />
+              <span className="text-blue-700 font-medium">
+                Đang tải thêm...
+              </span>
+            </motion.div>
+          </div>
         )}
 
-        {/* Container scrollable */}
         <div className="relative space-y-3">
-          {messages.length === 0 ? (
-            // Hiển thị message tạm thời khi chưa có tin nhắn
-            <div className="flex flex-col items-center justify-center h-full space-y-4">
-              <div className="text-center space-y-2">
-                <div className="text-white/80 text-lg font-medium">
-                  Chưa có tin nhắn nào với {display_name}
+          <AnimatePresence mode="popLayout" initial={false}>
+            {messages.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex flex-col items-center justify-center h-full space-y-4"
+              >
+                <div className="text-center space-y-2">
+                  <div className="text-blue-900 text-lg font-medium">
+                    Chưa có tin nhắn nào với {display_name}
+                  </div>
+                  <div className="text-blue-600 text-sm">
+                    Hãy bắt đầu cuộc trò chuyện bằng cách gửi tin nhắn đầu tiên
+                  </div>
                 </div>
-                <div className="text-white/60 text-sm">
-                  Hãy bắt đầu cuộc trò chuyện bằng cách gửi tin nhắn đầu tiên
-                </div>
-              </div>
-            </div>
-          ) : (
-            messages.map((msg, index) => (
-              <MessageItem
-                key={msg.id}
-                msg={msg}
-                index={index}
-                messages={messages}
-                currentUserId={currentUserId}
-                onPreviewMedia={setPreviewMedia}
-                display_name={display_name}
-                size="large"
-              />
-            ))
-          )}
+              </motion.div>
+            ) : (
+              messages.map((msg, index) => (
+                <motion.div
+                  key={msg.id}
+                  layout
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="relative"
+                >
+                  {/* Hiệu ứng highlight cho tin nhắn mới */}
+                  {newMessageIds.has(msg.id) && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: [0, 0.3, 0] }}
+                      transition={{ duration: 2, ease: "easeInOut" }}
+                      className={`absolute inset-0 rounded-2xl pointer-events-none z-0 ${
+                        msg.sender_id === currentUserId
+                          ? "bg-blue-400"
+                          : "bg-blue-300"
+                      }`}
+                    />
+                  )}
+
+                  <MessageItem
+                    msg={msg}
+                    index={index}
+                    messages={messages}
+                    currentUserId={currentUserId}
+                    onPreviewMedia={setPreviewMedia}
+                    display_name={display_name}
+                    size="large"
+                  />
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
         </div>
       </div>
+
       <AnimatePresence>
         {showScrollButton && (
           <motion.button
             onClick={scrollToBottom}
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            transition={{ duration: 0.3 }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-60 bg-[#2665b1] hover:bg-[#1b4c8a] text-white rounded-full shadow-lg p-3 backdrop-blur-sm z-20"
+            initial={{ opacity: 0, y: 40, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.8 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            transition={{
+              type: "spring",
+              stiffness: 400,
+              damping: 25,
+            }}
+            className="absolute left-1/2 -translate-x-1/2 bottom-40 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-full shadow-lg p-3 backdrop-blur-sm z-20 ring-2 ring-blue-300/50"
           >
-            <ChevronDown className="w-5 h-5" />
+            <motion.div
+              animate={{ y: [0, 3, 0] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              <ChevronDown className="w-5 h-5" />
+            </motion.div>
           </motion.button>
         )}
       </AnimatePresence>
 
-      <MediaPreviewModal
+      <MediaPreview
         mediaUrl={previewMedia}
         onClose={() => setPreviewMedia(null)}
         allMedia={allMedia}

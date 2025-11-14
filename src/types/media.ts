@@ -7,7 +7,6 @@ export interface MediaItem {
 }
 
 export interface FileItem {
-    id: string;
     name: string;
     size: string;
     url: string;

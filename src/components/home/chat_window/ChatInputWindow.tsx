@@ -43,7 +43,7 @@ export default function ChatInputWindow({
   const pickerRef = useRef<HTMLDivElement>(null);
   const [editorHeight, setEditorHeight] = useState(60);
   const bell = useRecoilValue(bellStateAtom);
-  // điều chỉnh tiptap
+
   const editor = useEditor({
     extensions: [
       Placeholder.configure({
@@ -60,15 +60,26 @@ export default function ChatInputWindow({
       attributes: {
         class: "focus:outline-none prose prose-sm max-w-none text-gray-700 p-3",
       },
-      // Xử lý phím Enter trong editor
       handleKeyDown: (view, event) => {
-        if (hasLeftGroup) return true; // Chặn mọi input nếu đã rời nhóm
+        if (hasLeftGroup) return true;
 
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
+
+          const text = editor?.getText().trim();
+          const html = editor?.getHTML().trim();
+          const hasText =
+            text && text !== "" && html !== "<p></p>" && html !== "<p><br></p>";
+
+          if (!hasText && selectedFiles.length === 0) {
+            toast.warning("Không thể gửi tin nhắn trống!");
+            return false;
+          }
+
           handleSend();
           return true;
         }
+
         return false;
       },
     },
@@ -80,6 +91,22 @@ export default function ChatInputWindow({
     }
   }, [hasLeftGroup, editor]);
 
+  const hasValidContent = () => {
+    const textContent = showRichText
+      ? editor?.getText().trim()
+      : message.trim();
+
+    const htmlContent = showRichText ? editor?.getHTML().trim() : "";
+
+    const hasText =
+      textContent &&
+      textContent !== "" &&
+      htmlContent !== "<p></p>" &&
+      htmlContent !== "<p><br></p>";
+
+    return hasText || selectedFiles.length > 0;
+  };
+
   const handleEmojiClick = (emojiData: any) => {
     if (showRichText && editor) {
       editor.commands.insertContent(emojiData.emoji);
@@ -89,13 +116,12 @@ export default function ChatInputWindow({
   };
 
   const handleSend = async () => {
-    if (
-      (showRichText
-        ? editor?.getText().trim() === ""
-        : message.trim() === "") &&
-      selectedFiles.length === 0
-    )
+    if (message === "") {
       return;
+    }
+    if (!hasValidContent()) {
+      return;
+    }
 
     setUploading(true);
     let uploaded: Media[] = [];
@@ -112,6 +138,7 @@ export default function ChatInputWindow({
             });
           }
         );
+        console.log("uploaded:", uploaded);
       } catch (err: any) {
         console.error("Upload lỗi:", err);
         toast.error(
@@ -138,10 +165,8 @@ export default function ChatInputWindow({
     setSelectedFiles([]);
     setProgress([]);
     setUploading(false);
-
-    //  Tắt rich text mode sau khi gửi và reset về chiều cao mặc định
     setShowRichText(false);
-    setEditorHeight(100);
+    setEditorHeight(60);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,7 +180,6 @@ export default function ChatInputWindow({
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Ẩn emoji picker khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -170,7 +194,6 @@ export default function ChatInputWindow({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Ctrl + Shift + X để bật/tắt Tiptap
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "x") {
@@ -186,19 +209,21 @@ export default function ChatInputWindow({
     setEditorHeight((prev) => (prev === 60 ? 300 : 60));
   };
 
+  const canSend = hasValidContent() && !hasLeftGroup;
+
   return (
-    <div className="p-2 sm:p-3 flex flex-col bg-white shadow-[0_-2px_6px_rgba(0,0,0,0.1)]">
+    <div className="p-4 mb-7 bg-[#1150af] border-t border-blue-100">
       {/* Thông báo đã rời nhóm */}
       {hasLeftGroup && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-3 p-3 bg-red-50 border-l-4 border-red-500 rounded-md"
+          className="mb-4 p-3 bg-red-50 border border-red-300/50 rounded-xl backdrop-blur-sm"
         >
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <svg
-                className="h-5 w-5 text-red-400"
+                className="h-5 w-5 text-red-500"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -210,11 +235,11 @@ export default function ChatInputWindow({
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-red-800">
+              <p className="text-sm font-semibold text-red-800">
                 Bạn đã rời khỏi nhóm này
               </p>
-              <p className="text-xs text-red-600 mt-1">
-                Bạn không có quyền gửi tin nhắn
+              <p className="text-xs text-red-600 mt-0.5">
+                Bạn không thể gửi tin nhắn
               </p>
             </div>
           </div>
@@ -223,15 +248,14 @@ export default function ChatInputWindow({
 
       {/* File preview */}
       {selectedFiles.length > 0 && !hasLeftGroup && (
-        <div className="flex overflow-x-auto gap-2 mb-2 py-1">
+        <div className="flex overflow-x-auto gap-2 mb-3 pb-2">
           {selectedFiles.map((file, index) => {
             const isImage = file.type.startsWith("image/");
             const isVideo = file.type.startsWith("video/");
-            const fileUploading = uploading;
             return (
               <div
                 key={index}
-                className="relative w-24 h-24 border rounded-lg overflow-hidden flex-shrink-0 cursor-pointer"
+                className="relative w-20 h-20 border-2 border-blue-400 rounded-xl overflow-hidden flex-shrink-0 bg-blue-50"
               >
                 {isImage || isVideo ? (
                   <div className="w-full h-full">
@@ -249,22 +273,24 @@ export default function ChatInputWindow({
                     )}
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-full bg-gray-100 text-sm">
-                    <FileText size={28} />
+                  <div className="flex items-center justify-center h-full bg-blue-100">
+                    <FileText size={24} className="text-blue-600" />
                   </div>
                 )}
                 {!uploading && (
                   <button
                     onClick={() => handleRemoveFile(index)}
-                    className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 hover:bg-red-500 transition-colors"
+                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md"
                   >
-                    <X size={12} />
+                    <X size={14} />
                   </button>
                 )}
-                {fileUploading && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white text-xs">
-                    <div className="w-12 h-12 border-4 border-t-blue-500 border-gray-200 rounded-full animate-spin mb-1"></div>
-                    <div>{progress[index] ?? 0}%</div>
+                {uploading && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
+                    <div className="w-8 h-8 border-3 border-t-blue-400 border-blue-200 rounded-full animate-spin mb-1"></div>
+                    <div className="text-xs font-semibold">
+                      {progress[index] ?? 0}%
+                    </div>
                   </div>
                 )}
               </div>
@@ -273,45 +299,61 @@ export default function ChatInputWindow({
         </div>
       )}
 
-      {/* các file và image */}
-      <div className="flex border-b-2 border-gray-200 mb-3">
-        {/* Upload icon */}
-        <motion.label
-          whileHover={{ scale: hasLeftGroup ? 1 : 1.1 }}
-          whileTap={{ scale: hasLeftGroup ? 1 : 0.9 }}
-          className={`relative flex items-center justify-center w-9 h-9 rounded-full transition-all ${
-            hasLeftGroup
-              ? "cursor-not-allowed opacity-40"
-              : "cursor-pointer hover:bg-gray-200"
-          }`}
-        >
-          <Image size={20} className="text-gray-600" />
-          <input
-            type="file"
-            multiple
-            hidden
-            onChange={handleFileSelect}
-            disabled={hasLeftGroup}
-          />
-        </motion.label>
-      </div>
-
-      {/* Input zone */}
-      <div className="flex items-end relative gap-2">
-        {/* Input / Tiptap */}
-        <div className="flex-1">
-          <div
-            className={`flex flex-col rounded-lg overflow-hidden border bg-gray-50 ${
-              hasLeftGroup ? "border-gray-200 opacity-60" : "border-gray-300"
+      {/* Main Input Area */}
+      <div className="flex items-end gap-2">
+        {/* Left Actions */}
+        <div className="flex items-center gap-1 pb-1">
+          {/* Upload Button */}
+          <motion.label
+            whileHover={{ scale: hasLeftGroup ? 1 : 1.1 }}
+            whileTap={{ scale: hasLeftGroup ? 1 : 0.95 }}
+            className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${
+              hasLeftGroup
+                ? "cursor-not-allowed opacity-40 bg-gray-100"
+                : "cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-600"
             }`}
           >
-            {/* Editor - chiều cao cố định */}
+            <Image size={22} />
+            <input
+              type="file"
+              multiple
+              hidden
+              onChange={handleFileSelect}
+              disabled={hasLeftGroup}
+            />
+          </motion.label>
+
+          {/* Emoji Button */}
+          <motion.button
+            whileHover={{ scale: hasLeftGroup ? 1 : 1.1 }}
+            whileTap={{ scale: hasLeftGroup ? 1 : 0.95 }}
+            onClick={() => !hasLeftGroup && setShowPicker((p) => !p)}
+            disabled={hasLeftGroup}
+            className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${
+              hasLeftGroup
+                ? "cursor-not-allowed opacity-40 bg-gray-100"
+                : "bg-blue-50 hover:bg-blue-100 text-blue-600"
+            }`}
+          >
+            <Smile size={22} />
+          </motion.button>
+        </div>
+
+        {/* Input Editor */}
+        <div className="flex-1">
+          <div
+            className={`flex flex-col rounded-2xl overflow-hidden border-2 transition-all ${
+              hasLeftGroup
+                ? "border-gray-200 bg-gray-50 opacity-60"
+                : "border-blue-300 bg-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
+            }`}
+          >
             <div
-              className={`bg-gray-100 overflow-y-auto prose prose-sm max-w-none
+              className={`overflow-y-auto prose prose-sm max-w-none
                 prose-headings:font-bold prose-headings:text-lg prose-headings:my-2
                 prose-ul:list-disc prose-ol:list-decimal prose-li:ml-4
-                prose-blockquote:border-l-4 prose-blockquote:border-gray-400 prose-blockquote:pl-4
-                prose-code:bg-gray-200 prose-code:px-1 prose-code:rounded prose-code:text-sm
+                prose-blockquote:border-l-4 prose-blockquote:border-blue-500 prose-blockquote:pl-4
+                prose-code:bg-blue-100 prose-code:px-1 prose-code:rounded prose-code:text-sm
                 prose-p:my-1 ${
                   hasLeftGroup ? "text-gray-400" : "text-gray-700"
                 }`}
@@ -320,7 +362,7 @@ export default function ChatInputWindow({
               <EditorContent editor={editor} />
             </div>
 
-            {/* Toolbar chỉ hiển thị khi showRichText và chưa rời nhóm */}
+            {/* Toolbar */}
             <AnimatePresence>
               {showRichText && !hasLeftGroup && (
                 <motion.div
@@ -328,7 +370,7 @@ export default function ChatInputWindow({
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="border-t border-gray-300"
+                  className="border-t border-blue-200"
                 >
                   <MenuBar editor={editor} toggleHeight={toggleHeight} />
                 </motion.div>
@@ -337,69 +379,38 @@ export default function ChatInputWindow({
           </div>
         </div>
 
-        {/* Emoji & Gửi */}
-        <div className="flex items-center gap-1 pb-1">
-          <motion.div
-            whileHover={{ scale: hasLeftGroup ? 1 : 1.15 }}
-            whileTap={{ scale: hasLeftGroup ? 1 : 0.85 }}
-          >
-            <button
-              onClick={() => !hasLeftGroup && setShowPicker((p) => !p)}
-              disabled={hasLeftGroup}
-              className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
-                hasLeftGroup
-                  ? "cursor-not-allowed opacity-40"
-                  : "hover:bg-gray-200"
-              }`}
-            >
-              <Smile size={20} className="text-gray-600" />
-            </button>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: hasLeftGroup ? 1 : 1.15 }}
-            whileTap={{ scale: hasLeftGroup ? 1 : 0.85 }}
-          >
-            {message.trim().length > 0 ? (
-              <button
-                onClick={handleSend}
-                disabled={hasLeftGroup}
-                className={`p-2 rounded-full transition-colors ${
-                  hasLeftGroup
-                    ? "cursor-not-allowed opacity-40 text-gray-400"
-                    : "text-[#1b4c8a] hover:bg-[#0f3461] hover:text-white"
-                }`}
-              >
-                <Send size={20} />
-              </button>
-            ) : (
-              <button
-                disabled={hasLeftGroup}
-                className={`p-2 rounded-full transition-colors ${
-                  hasLeftGroup
-                    ? "cursor-not-allowed opacity-40 text-gray-400"
-                    : "text-[#1b4c8a] hover:bg-[#0f3461] hover:text-white"
-                }`}
-              >
-                <ThumbsUp size={22} />
-              </button>
-            )}
-          </motion.div>
-        </div>
-
-        {showPicker && !hasLeftGroup && (
-          <div ref={pickerRef} className="absolute bottom-12 right-10 z-50">
-            <EmojiPicker
-              onEmojiClick={handleEmojiClick}
-              theme="light"
-              searchDisabled
-              previewConfig={{ showPreview: false }}
-              height={350}
-              width={300}
-            />
-          </div>
-        )}
+        {/* Send/Like Button */}
+        <motion.button
+          whileHover={{ scale: canSend ? 1.05 : 1 }}
+          whileTap={{ scale: canSend ? 0.95 : 1 }}
+          onClick={handleSend}
+          disabled={!canSend}
+          className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${
+            canSend
+              ? "bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-2xs shadow-blue-100 cursor-pointer"
+              : "cursor-not-allowed opacity-40 bg-gray-100 text-gray-400"
+          }`}
+        >
+          {canSend ? <Send size={20} /> : <ThumbsUp size={20} />}
+        </motion.button>
       </div>
+
+      {/* Emoji Picker */}
+      {showPicker && !hasLeftGroup && (
+        <div
+          ref={pickerRef}
+          className="absolute bottom-20 right-6 z-50 shadow-2xl rounded-2xl overflow-hidden"
+        >
+          <EmojiPicker
+            onEmojiClick={handleEmojiClick}
+            theme="light"
+            searchDisabled
+            previewConfig={{ showPreview: false }}
+            height={350}
+            width={300}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ export interface ConversationResponse {
 
 export interface Conversation {
     user_id: string,
+    sender_id: string,
     group_id: string,
     display_name: string,
     avatar: string,

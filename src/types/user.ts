@@ -11,6 +11,7 @@ export interface UserResponse {
         birthday: string;
         gender: string;
         is_completed_friend_setup: boolean;
+        is_profile_complete: boolean;
     }
 }
 

@@ -23,7 +23,6 @@ export default function ActionButtons({
   groupId,
 }: ActionButtonsProps) {
   const setGroups = useSetRecoilState(groupListState);
-
   const user = useRecoilValue(userAtom);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -31,7 +30,7 @@ export default function ActionButtons({
 
   const handleLeaveGroup = async () => {
     try {
-      onLeaveGroup?.(); // nếu có callback thì vẫn gọi
+      onLeaveGroup?.();
       if (socketManager.getSocket()) {
         socketManager.sendMemberLeft(
           userId,
@@ -41,9 +40,8 @@ export default function ActionButtons({
         );
       }
 
-      // Gọi API để lấy danh sách mới
       const res = await groupApi.getGroup();
-      setGroups(res.data); // cập nhật atom -> Sidebar tự re-render
+      setGroups(res.data);
       setShowLeaveConfirm(false);
     } catch (err) {
       console.error(err);
@@ -52,12 +50,12 @@ export default function ActionButtons({
 
   return (
     <>
-      {/* Leave Group Button (Only for groups) */}
+      {/* Leave Group Button */}
       {isGroup && (
-        <div className="p-4 border-b border-gray-200">
+        <div className="border-b border-blue-700/20">
           <button
             onClick={() => setShowLeaveConfirm(true)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition backdrop-blur-sm border border-red-500/30"
           >
             <LogOut size={18} />
             <span className="font-medium">Rời khỏi nhóm</span>
@@ -66,10 +64,10 @@ export default function ActionButtons({
       )}
 
       {/* Delete History Button */}
-      <div className="p-4">
+      <div>
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition backdrop-blur-sm border border-red-500/30"
         >
           <Trash2 size={18} />
           <span className="font-medium">Xóa lịch sử trò chuyện</span>

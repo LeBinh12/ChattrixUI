@@ -102,6 +102,21 @@ class SocketManager {
     this.socket.send(JSON.stringify(msg));
   }
 
+  sendSeenMessage(lastSeenMessageId: string, selectedChat?: string, userID?: string) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    const msg = {
+      type: "update_seen", // type mà backend hiểu để update chat_seen_status
+      message_status: {
+        last_seen_message_id: lastSeenMessageId,
+        sender_id: userID,  // người nhắn tin
+        receiver_id: selectedChat,        // mình đang xem
+      },
+    };
+    console.log("msg", msg)
+    this.socket.send(JSON.stringify(msg));
+  };
+
+
   addListener(cb: MessageCallback) {
     this.listeners.push(cb);
   }

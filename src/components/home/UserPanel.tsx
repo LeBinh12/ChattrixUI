@@ -1,6 +1,6 @@
-import { LogOut, Settings } from "lucide-react";
-import { useLoadUser } from "../../hooks/useLoadUser";
+import { LogOut, Settings, GripVertical } from "lucide-react";
 import { useRecoilValue } from "recoil";
+import { useLoadUser } from "../../hooks/useLoadUser";
 import { userAtom } from "../../recoil/atoms/userAtom";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,15 +8,14 @@ import { toast } from "react-toastify";
 import { socketManager } from "../../api/socket";
 import UserAvatar from "../UserAvatar";
 import ConfirmModal from "../notification/ConfirmModal";
+import { groupModalAtom } from "../../recoil/atoms/uiAtom";
 
 export default function UserPanel() {
   useLoadUser();
-
   const user = useRecoilValue(userAtom);
+  const isGroupModalOpen = useRecoilValue(groupModalAtom);
 
-  const [open, setOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -25,38 +24,45 @@ export default function UserPanel() {
     localStorage.removeItem("access_token");
     navigate("/login");
   };
+
   return (
     <>
-      <div className="absolute bottom-4 left-4 sm:left-6 flex items-center justify-between bg-[#2b5dc0] text-white w-60 sm:w-72 px-4 py-3 rounded-2xl shadow-xl">
-        {/* Avatar + Tên */}
-        <div className="flex items-center space-x-3">
-          <UserAvatar avatar={user?.data.avatar} isOnline={true} />
+      <div
+        className={`bg-[#2b2d31] text-white w-60 sm:w-72 rounded-2xl shadow-2xl border border-[#1e1f22] ${
+          isGroupModalOpen ? "blur-sm pointer-events-none opacity-60" : ""
+        } `}
+      >
+        {/* Drag Handle */}
+        <div className="drag-handle cursor-move bg-[#1e1f22] px-4 py-2 rounded-t-2xl flex items-center justify-between border-b border-[#35363c]">
+          <GripVertical size={20} className="text-gray-400" />
+        </div>
 
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm sm:text-base font-semibold">
-              {user?.data.display_name}
-            </span>
+        {/* Content */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center space-x-3">
+            <UserAvatar avatar={user?.data.avatar} isOnline={true} />
+            <div className="flex flex-col leading-tight">
+              <span className="text-sm sm:text-base font-semibold">
+                {user?.data.display_name}
+              </span>
+              <span className="text-xs sm:text-sm text-green-500">Online</span>
+            </div>
+          </div>
 
-            <span className="text-xs sm:text-sm text-green-500">Online</span>
+          <div className="flex items-center space-x-2">
+            <button className="p-2 rounded-lg hover:bg-[#35363c] transition">
+              <Settings size={20} />
+            </button>
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="p-2 rounded-lg hover:bg-red-500 transition"
+            >
+              <LogOut size={20} />
+            </button>
           </div>
         </div>
-
-        {/* Nút cài đặt */}
-        <div className="flex items-center space-x-2">
-          <button className="p-2 sm:p-3 rounded-xl hover:bg-[#357ae8] transition">
-            <Settings size={20} className="sm:w-6 sm:h-6" />
-          </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              setShowConfirm(true);
-            }}
-            className="p-2 sm:p-3 rounded-xl hover:bg-gray-300 transition bg-white"
-          >
-            <LogOut size={20} className="text-black" />
-          </button>
-        </div>
       </div>
+
       <ConfirmModal
         isOpen={showConfirm}
         title="Xác nhận đăng xuất"

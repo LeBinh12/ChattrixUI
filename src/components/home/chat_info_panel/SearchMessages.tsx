@@ -10,13 +10,13 @@ export default function SearchMessages({
   onSearchChange,
 }: SearchMessagesProps) {
   return (
-    <div className="p-4 border-b border-gray-200">
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+    <div>
+      <h4 className="text-sm font-semibold text-blue-100 mb-3">
         Tìm kiếm tin nhắn
       </h4>
       <div className="relative">
         <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300"
           size={18}
         />
         <input
@@ -24,7 +24,7 @@ export default function SearchMessages({
           placeholder="Tìm kiếm..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+          className="w-full pl-10 pr-4 py-2 bg-gray-300 backdrop-blur-sm border border-blue-600/40 rounded-lg focus:outline-none focus:border-gray-700 focus:ring-2 focus:ring-gray-600 text-sm text-gray-700 placeholder-gray-700 transition-all"
         />
       </div>
     </div>
